@@ -51,13 +51,33 @@ def main():
     )
 
     parser.add_argument(
-        "--limit",
-        dest='limit',
-        metavar="LIMIT",
+        "--limit1",
+        dest='limit1',
+        metavar="LIMIT1",
         type=int,
         default=5,
-        help="Optional: the (arbitrary) limit to use for various statistics before stopping to print them. "
+        help="Optional: the (arbitrary) first limit to use for various statistics before stopping to print them. "
              "Must be a positive integer. Default: 5."
+    )
+
+    parser.add_argument(
+        "--limit2",
+        dest='limit2',
+        metavar="LIMIT2",
+        type=int,
+        default=10,
+        help="Optional: the (arbitrary) second limit to use for various statistics before stopping to print them. "
+             "Must be a positive integer. Default: 10."
+    )
+
+    parser.add_argument(
+        "--limit3",
+        dest='limit3',
+        metavar="LIMIT3",
+        type=int,
+        default=50,
+        help="Optional: the (arbitrary) third limit to use for various statistics before stopping to print them. "
+             "Must be a positive integer. Default: 50."
     )
 
     args = parser.parse_args()
@@ -80,6 +100,7 @@ def main():
     print("")
     print(f"No. of rows: {len(rows)}")
     print(f"No. of columns: {len(rows[0])}")
+    print(f"Header?: {args.header}")
     print("")
     print("Duplicate rows:")
     rows_by_count: dict = defaultdict(int)
@@ -100,7 +121,7 @@ def main():
     for row, missing_value_count in sorted(rows_by_missing_value_count.items(), key=lambda itm: itm[1], reverse=True):
         if missing_value_count > 0:
             idx += 1
-            if idx > args.limit:
+            if idx > args.limit2:
                 print("\t...")
                 break
             else:
@@ -129,13 +150,44 @@ def main():
             f"\t({col_idx + 1:03}) {col_type} " +
             (f"{header_fixed_width[col_idx]} " if header is not None else "") +
             f"{len(distinct_values):7_} distinct values, {missing_value_count:7_} missing" +  # 7 = for values up to "999_999"
-            (f": {', '.join(f'{len([v for v in column if v == val])}x {repr(val)}' for val in distinct_values)}" if len(distinct_values) <= args.limit else "") +
+            (f": {', '.join(f'{len([v for v in column if v == val])}x {repr(val)}' for val in distinct_values)}" if len(distinct_values) <= args.limit1 else "") +
             (f": min. {min(float_values):_.2f}, max. {max(float_values):_.2f}, "
              f"{len([f for f in float_values if f < 0]):_} neg. values, "
              f"{len([f for f in float_values if f == 0]):_} zero values, "
              f"{len([f for f in float_values if f > 0]):_} pos. values"
-             if col_type in ["FLOAT", "INT  "] and len(distinct_values) > args.limit else "")
+             if col_type in ["FLOAT", "INT  "] and len(distinct_values) > args.limit1 else "")
         )
+    print("")
+    print("Identical/Equivalent columns:")
+    for col_idx1 in range(len(rows[0])):
+        for col_idx2 in range(len(rows[0])):
+            if col_idx1 < col_idx2:
+                column1: list = [row[col_idx1] for row in rows]
+                column2: list = [row[col_idx2] for row in rows]
+                joined: list[tuple] = [(column1[i], column2[i]) for i in range(len(column1))]
+                joined: set[tuple] = set(joined)
+                joined: list[tuple] = sorted(joined)
+                joined_lhs: set = set(x for x, y in joined)
+                joined_rhs: set = set(y for x, y in joined)
+                if all(x == y for x, y in joined):
+                    print(f"\tColumns {col_idx1+1}{f' ({header[col_idx1]})' if header else ''} "
+                          f"and {col_idx2+1}{f' ({header[col_idx2]})' if header else ''} are always *exactly* identical:")
+                    for idx, tuple_ in enumerate(joined):
+                        if idx >= args.limit3:
+                            print("\t\t...")
+                            break
+                        else:
+                            print(f"\t\t{idx + 1} {repr(tuple_)}")
+                elif len(joined_lhs) == len(joined_rhs) == len(joined):
+                    print(f"\tColumns {col_idx1 + 1}{f' ({header[col_idx1]})' if header else ''} "
+                          f"and {col_idx2 + 1}{f' ({header[col_idx2]})' if header else ''} are equivalent:")
+                    for idx, tuple_ in enumerate(joined):
+                        if idx >= args.limit3:
+                            print("\t\t...")
+                            break
+                        else:
+                            print(f"\t\t{idx + 1} {repr(tuple_)}")
+
     print("")
 
 
