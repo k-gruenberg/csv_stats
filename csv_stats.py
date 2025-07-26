@@ -3,6 +3,9 @@ import csv
 from collections import defaultdict
 
 
+MISSING: list[str] = ["", "NA", "N/A", "na", "n/a"]
+
+
 def fix_width(s: str, width: int) -> str:
     if len(s) >= width:
         return s
@@ -91,7 +94,7 @@ def main():
     print("Rows with missing values:")
     rows_by_missing_value_count: dict = dict()
     for row in rows:
-        missing_value_count: int = len([cell for cell in row if cell in ["", "NA", "N/A", "na", "n/a"]])
+        missing_value_count: int = len([cell for cell in row if cell in MISSING])
         rows_by_missing_value_count[tuple(row)] = missing_value_count
     idx = 0
     for row, missing_value_count in sorted(rows_by_missing_value_count.items(), key=lambda itm: itm[1], reverse=True):
@@ -107,6 +110,7 @@ def main():
     for col_idx in range(len(rows[0])):
         column: list = [row[col_idx] for row in rows]
         distinct_values: list = sorted(set(val for val in column))
+        missing_value_count: int = len([val for val in column if val in MISSING])
         col_type: str
         try:
             int_values = [int(val) for val in column]
@@ -124,7 +128,7 @@ def main():
         print(
             f"\t({col_idx + 1:03}) {col_type} " +
             (f"{header_fixed_width[col_idx]} " if header is not None else "") +
-            f"{len(distinct_values):7_} distinct values" +  # 7 = for values up to "999_999"
+            f"{len(distinct_values):7_} distinct values, {missing_value_count:7_} missing" +  # 7 = for values up to "999_999"
             (f": {', '.join(f'{len([v for v in column if v == val])}x {repr(val)}' for val in distinct_values)}" if len(distinct_values) <= args.limit else "") +
             (f": min. {min(float_values):_.2f}, max. {max(float_values):_.2f}, "
              f"{len([f for f in float_values if f < 0]):_} neg. values, "
