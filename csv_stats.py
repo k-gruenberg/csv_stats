@@ -79,15 +79,19 @@ def main():
             print(f"\t({idx}) {count}x {row}")
     print("")
     print("Rows with missing values:")
-    idx = 0
+    rows_by_missing_value_count: dict = dict()
     for row in rows:
-        if any(cell in ["", "NA", "N/A", "na", "n/a"] for cell in row):
+        missing_value_count: int = len([cell for cell in row if cell in ["", "NA", "N/A", "na", "n/a"]])
+        rows_by_missing_value_count[tuple(row)] = missing_value_count
+    idx = 0
+    for row, missing_value_count in sorted(rows_by_missing_value_count.items(), key=lambda itm: itm[1], reverse=True):
+        if missing_value_count > 0:
             idx += 1
             if idx > 5:
                 print("\t...")
                 break
             else:
-                print(f"\t({idx}) {row}")
+                print(f"\t({idx}) {missing_value_count} missing: {row}")
     print("")
     print("Columns:")
     for col_idx in range(len(rows[0])):
