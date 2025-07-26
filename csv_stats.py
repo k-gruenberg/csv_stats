@@ -47,6 +47,16 @@ def main():
         help="Optional: specify a custom CSV quote character. Default: '\"' (double quote char)."
     )
 
+    parser.add_argument(
+        "--limit",
+        dest='limit',
+        metavar="LIMIT",
+        type=int,
+        default=5,
+        help="Optional: the (arbitrary) limit to use for various statistics before stopping to print them. "
+             "Must be a positive integer. Default: 5."
+    )
+
     args = parser.parse_args()
 
     rows: list
@@ -87,7 +97,7 @@ def main():
     for row, missing_value_count in sorted(rows_by_missing_value_count.items(), key=lambda itm: itm[1], reverse=True):
         if missing_value_count > 0:
             idx += 1
-            if idx > 5:
+            if idx > args.limit:
                 print("\t...")
                 break
             else:
@@ -115,12 +125,12 @@ def main():
             f"\t({col_idx + 1:03}) {col_type} " +
             (f"{header_fixed_width[col_idx]} " if header is not None else "") +
             f"{len(distinct_values):7_} distinct values" +  # 7 = for values up to "999_999"
-            (f": {', '.join(f'{len([v for v in column if v == val])}x {repr(val)}' for val in distinct_values)}" if len(distinct_values) <= 5 else "") +
+            (f": {', '.join(f'{len([v for v in column if v == val])}x {repr(val)}' for val in distinct_values)}" if len(distinct_values) <= args.limit else "") +
             (f": min. {min(float_values):_.2f}, max. {max(float_values):_.2f}, "
              f"{len([f for f in float_values if f < 0]):_} neg. values, "
              f"{len([f for f in float_values if f == 0]):_} zero values, "
              f"{len([f for f in float_values if f > 0]):_} pos. values"
-             if col_type in ["FLOAT", "INT  "] and len(distinct_values) > 5 else "")
+             if col_type in ["FLOAT", "INT  "] and len(distinct_values) > args.limit else "")
         )
     print("")
 
