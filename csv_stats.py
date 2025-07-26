@@ -50,7 +50,7 @@ def main():
         help="Optional: specify a custom CSV quote character. Default: '\"' (double quote char)."
     )
 
-    parser.add_argument(
+    parser.add_argument(  # TODO: order by usage order instead?!  # TODO: give more meaningful names?!
         "--limit1",
         dest='limit1',
         metavar="LIMIT1",
@@ -65,7 +65,7 @@ def main():
         dest='limit2',
         metavar="LIMIT2",
         type=int,
-        default=10,
+        default=10,  # TODO: makes sense?!
         help="Optional: the (arbitrary) second limit to use for various statistics before stopping to print them. "
              "Must be a positive integer. Default: 10."
     )
@@ -75,7 +75,7 @@ def main():
         dest='limit3',
         metavar="LIMIT3",
         type=int,
-        default=50,
+        default=50,  # TODO: makes sense?!
         help="Optional: the (arbitrary) third limit to use for various statistics before stopping to print them. "
              "Must be a positive integer. Default: 50."
     )
@@ -102,7 +102,7 @@ def main():
     print(f"No. of columns: {len(rows[0])}")
     print(f"Header?: {args.header}")
     print("")
-    print("Duplicate rows:")
+    print("Duplicate rows:")  # TODO: add limit?!  # TODO: add total count ?!
     rows_by_count: dict = defaultdict(int)
     for row in rows:
         rows_by_count[tuple(row)] += 1
@@ -112,7 +112,7 @@ def main():
             idx += 1
             print(f"\t({idx}) {count}x {row}")
     print("")
-    print("Rows with missing values:")
+    print("Rows with missing values:")  # TODO: add total count ?!
     rows_by_missing_value_count: dict = dict()
     for row in rows:
         missing_value_count: int = len([cell for cell in row if cell in MISSING])
@@ -127,7 +127,7 @@ def main():
             else:
                 print(f"\t({idx}) {missing_value_count} missing: {row}")
     print("")
-    print("Columns:")
+    print("Columns:")  # TODO: add total count ?!
     for col_idx in range(len(rows[0])):
         column: list = [row[col_idx] for row in rows]
         distinct_values: list = sorted(set(val for val in column))
@@ -158,7 +158,8 @@ def main():
              if col_type in ["FLOAT", "INT  "] and len(distinct_values) > args.limit1 else "")
         )
     print("")
-    print("Identical/Equivalent columns:")
+    print("Identical/Equivalent/Redundant columns:")
+    redundant_cols: set[int] = set()
     for col_idx1 in range(len(rows[0])):
         for col_idx2 in range(len(rows[0])):
             if col_idx1 < col_idx2:
@@ -172,21 +173,27 @@ def main():
                 if all(x == y for x, y in joined):
                     print(f"\tColumns {col_idx1+1}{f' ({header[col_idx1]})' if header else ''} "
                           f"and {col_idx2+1}{f' ({header[col_idx2]})' if header else ''} are always *exactly* identical:")
-                    for idx, tuple_ in enumerate(joined):
-                        if idx >= args.limit3:
-                            print("\t\t...")
-                            break
-                        else:
-                            print(f"\t\t{idx + 1} {repr(tuple_)}")
                 elif len(joined_lhs) == len(joined_rhs) == len(joined):
                     print(f"\tColumns {col_idx1 + 1}{f' ({header[col_idx1]})' if header else ''} "
                           f"and {col_idx2 + 1}{f' ({header[col_idx2]})' if header else ''} are equivalent:")
-                    for idx, tuple_ in enumerate(joined):
-                        if idx >= args.limit3:
-                            print("\t\t...")
-                            break
-                        else:
-                            print(f"\t\t{idx + 1} {repr(tuple_)}")
+                elif len(joined_lhs) == len(joined) < 0.90 * len(rows) and col_idx2 not in redundant_cols:  # (in theory, *everything* can be inferred from unique/ID columns!)
+                    redundant_cols.add(col_idx2)
+                    print(f"\tBecause there's already column "
+                          f"{col_idx1 + 1}{f' ({header[col_idx1]})' if header else ''}, column "
+                          f"{col_idx2 + 1}{f' ({header[col_idx2]})' if header else ''} is redundant:")
+                elif len(joined_rhs) == len(joined) < 0.90 * len(rows) and col_idx1 not in redundant_cols:  # (in theory, *everything* can be inferred from unique/ID columns!)
+                    redundant_cols.add(col_idx1)
+                    print(f"\tColumn {col_idx1 + 1}{f' ({header[col_idx1]})' if header else ''} "
+                          f"is redundant as there's already column "
+                          f"{col_idx2 + 1}{f' ({header[col_idx2]})' if header else ''}:")
+                else:
+                    continue
+                for idx, tuple_ in enumerate(joined):
+                    if idx >= args.limit3:
+                        print("\t\t...")
+                        break
+                    else:
+                        print(f"\t\t{idx + 1} {repr(tuple_)}")
 
     print("")
 
