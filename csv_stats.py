@@ -3,6 +3,13 @@ import csv
 from collections import defaultdict
 
 
+def fix_width(s: str, width: int) -> str:
+    if len(s) >= width:
+        return s
+    else:
+        return s + (" " * (width - len(s)))
+
+
 def main():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter,
@@ -32,9 +39,12 @@ def main():
 
     if args.header:
         header = rows[0]
+        max_header_str_len: int = max(len(h) for h in header)
+        header_fixed_width = [fix_width(h, max_header_str_len) for h in header]
         rows = rows[1:]
     else:
         header = None
+        header_fixed_width = None
 
     print("")
     print(f"No. of rows: {len(rows)}")
@@ -49,6 +59,27 @@ def main():
         if count > 1:
             idx += 1
             print(f"\t({idx}) {count}x {row}")
+    print("")
+    print("Columns:")
+    for col_idx in range(len(rows[0])):
+        column: list = [row[col_idx] for row in rows]
+        distinct_values: list = sorted(set(val for val in column))
+        col_type: str
+        try:
+            int_values = [int(val) for val in column]
+            col_type = "INT  "
+        except ValueError:
+            try:
+                float_values = [float(val) for val in column]
+                col_type = "FLOAT"
+            except ValueError:
+                col_type = "STR  "
+        print(
+            f"\t({col_idx + 1:03}) {col_type} " +
+            (f"{header_fixed_width[col_idx]} " if header is not None else "") +
+            f"{len(distinct_values):7_} distinct values" +  # 7 = for values up to "999_999"
+            (f": {', '.join(f'{len([v for v in column if v == val])}x {repr(val)}' for val in distinct_values)}" if len(distinct_values) <= 5 else "")
+        )
     print("")
 
 
