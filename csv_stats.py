@@ -29,12 +29,30 @@ def main():
         help="Use this flag when the given CSV file contains a header row at the top."
     )
 
+    parser.add_argument(
+        "--delimiter",
+        dest='delimiter',
+        metavar="CSV_DELIMITER",
+        type=str,
+        default=",",
+        help="Optional: specify a custom CSV delimiter. Default: ',' (comma)."
+    )
+
+    parser.add_argument(
+        "--quotechar",
+        dest='quotechar',
+        metavar="CSV_QUOTE_CHAR",
+        type=str,
+        default='\"',
+        help="Optional: specify a custom CSV quote character. Default: '\"' (double quote char)."
+    )
+
     args = parser.parse_args()
 
     rows: list
 
     with open(args.PATH_TO_CSV_FILE, newline='') as csv_file:
-        csv_reader = csv.reader(csv_file)
+        csv_reader = csv.reader(csv_file, delimiter=args.delimiter, quotechar=args.quotechar)
         rows = [row for row in csv_reader]
 
     if args.header:
