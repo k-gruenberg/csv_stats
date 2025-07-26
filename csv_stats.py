@@ -80,6 +80,27 @@ def main():
              "Must be a positive integer. Default: 50."
     )
 
+    parser.add_argument(
+        "--no-warn-identical-columns",
+        dest='no_warn_identical_columns',
+        action='store_true',
+        help="Don't warn about identical columns."
+    )
+
+    parser.add_argument(
+        "--no-warn-equivalent-columns",
+        dest='no_warn_equivalent_columns',
+        action='store_true',
+        help="Don't warn about equivalent columns."
+    )
+
+    parser.add_argument(
+        "--no-warn-redundant-columns",
+        dest='no_warn_redundant_columns',
+        action='store_true',
+        help="Don't warn about redundant columns."
+    )
+
     args = parser.parse_args()
 
     rows: list
@@ -158,7 +179,16 @@ def main():
              if col_type in ["FLOAT", "INT  "] and len(distinct_values) > args.limit1 else "")
         )
     print("")
-    print("Identical/Equivalent/Redundant columns:")
+    if args.no_warn_identical_columns and args.no_warn_equivalent_columns and args.no_warn_redundant_columns:
+        return
+    adjectives: list[str] = list()
+    if not args.no_warn_identical_columns:
+        adjectives.append("Identical")
+    if not args.no_warn_equivalent_columns:
+        adjectives.append("Equivalent")
+    if not args.no_warn_redundant_columns:
+        adjectives.append("Redundant")
+    print(f"{'/'.join(adjectives)} columns:")
     redundant_cols: set[int] = set()
     for col_idx1 in range(len(rows[0])):
         for col_idx2 in range(len(rows[0])):
@@ -170,18 +200,18 @@ def main():
                 joined: list[tuple] = sorted(joined)
                 joined_lhs: set = set(x for x, y in joined)
                 joined_rhs: set = set(y for x, y in joined)
-                if all(x == y for x, y in joined):
+                if not args.no_warn_identical_columns and all(x == y for x, y in joined):
                     print(f"\tColumns {col_idx1+1}{f' ({header[col_idx1]})' if header else ''} "
                           f"and {col_idx2+1}{f' ({header[col_idx2]})' if header else ''} are always *exactly* identical:")
-                elif len(joined_lhs) == len(joined_rhs) == len(joined):
+                elif not args.no_warn_equivalent_columns and len(joined_lhs) == len(joined_rhs) == len(joined):
                     print(f"\tColumns {col_idx1 + 1}{f' ({header[col_idx1]})' if header else ''} "
                           f"and {col_idx2 + 1}{f' ({header[col_idx2]})' if header else ''} are equivalent:")
-                elif len(joined_lhs) == len(joined) < 0.90 * len(rows) and col_idx2 not in redundant_cols:  # (in theory, *everything* can be inferred from unique/ID columns!)
+                elif not args.no_warn_redundant_columns and len(joined_lhs) == len(joined) < 0.90 * len(rows) and col_idx2 not in redundant_cols:  # (in theory, *everything* can be inferred from unique/ID columns!)
                     redundant_cols.add(col_idx2)
                     print(f"\tBecause there's already column "
                           f"{col_idx1 + 1}{f' ({header[col_idx1]})' if header else ''}, column "
                           f"{col_idx2 + 1}{f' ({header[col_idx2]})' if header else ''} is redundant:")
-                elif len(joined_rhs) == len(joined) < 0.90 * len(rows) and col_idx1 not in redundant_cols:  # (in theory, *everything* can be inferred from unique/ID columns!)
+                elif not args.no_warn_redundant_columns and len(joined_rhs) == len(joined) < 0.90 * len(rows) and col_idx1 not in redundant_cols:  # (in theory, *everything* can be inferred from unique/ID columns!)
                     redundant_cols.add(col_idx1)
                     print(f"\tColumn {col_idx1 + 1}{f' ({header[col_idx1]})' if header else ''} "
                           f"is redundant as there's already column "
@@ -194,7 +224,6 @@ def main():
                         break
                     else:
                         print(f"\t\t{idx + 1} {repr(tuple_)}")
-
     print("")
 
 
