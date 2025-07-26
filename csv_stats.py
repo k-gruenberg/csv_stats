@@ -85,18 +85,27 @@ def main():
         col_type: str
         try:
             int_values = [int(val) for val in column]
+            float_values = int_values
             col_type = "INT  "
         except ValueError:
             try:
+                int_values = None
                 float_values = [float(val) for val in column]
                 col_type = "FLOAT"
             except ValueError:
+                int_values = None
+                float_values = None
                 col_type = "STR  "
         print(
             f"\t({col_idx + 1:03}) {col_type} " +
             (f"{header_fixed_width[col_idx]} " if header is not None else "") +
             f"{len(distinct_values):7_} distinct values" +  # 7 = for values up to "999_999"
-            (f": {', '.join(f'{len([v for v in column if v == val])}x {repr(val)}' for val in distinct_values)}" if len(distinct_values) <= 5 else "")
+            (f": {', '.join(f'{len([v for v in column if v == val])}x {repr(val)}' for val in distinct_values)}" if len(distinct_values) <= 5 else "") +
+            (f": min. {min(float_values):_.2f}, max. {max(float_values):_.2f}, "
+             f"{len([f for f in float_values if f < 0]):_} neg. values, "
+             f"{len([f for f in float_values if f == 0]):_} zero values, "
+             f"{len([f for f in float_values if f > 0]):_} pos. values"
+             if col_type in ["FLOAT", "INT  "] and len(distinct_values) > 5 else "")
         )
     print("")
 
