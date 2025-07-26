@@ -78,6 +78,17 @@ def main():
             idx += 1
             print(f"\t({idx}) {count}x {row}")
     print("")
+    print("Rows with missing values:")
+    idx = 0
+    for row in rows:
+        if any(cell in ["", "NA", "N/A", "na", "n/a"] for cell in row):
+            idx += 1
+            if idx > 5:
+                print("\t...")
+                break
+            else:
+                print(f"\t({idx}) {row}")
+    print("")
     print("Columns:")
     for col_idx in range(len(rows[0])):
         column: list = [row[col_idx] for row in rows]
