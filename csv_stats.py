@@ -1,5 +1,6 @@
 import argparse
 import csv
+import statistics
 from collections import defaultdict
 
 
@@ -11,6 +12,14 @@ def fix_width(s: str, width: int) -> str:
         return s
     else:
         return s + (" " * (width - len(s)))
+
+
+def is_float(s: str) -> bool:
+    try:
+        _f = float(s)
+        return True
+    except ValueError:
+        return False
 
 
 def main():
@@ -48,6 +57,17 @@ def main():
         type=str,
         default='\"',
         help="Optional: specify a custom CSV quote character. Default: '\"' (double quote char)."
+    )
+
+    parser.add_argument(
+        "--class-label",
+        dest='class_label',
+        metavar="COLUMN",
+        type=str,
+        default=None,
+        help="Optional: specify the index (1-based) or name of the column representing the class label. "
+             "By default, it is assumed that there is no class label, and any corresponding statistics won't "
+             "be generated!"
     )
 
     parser.add_argument(  # TODO: order by usage order instead?!  # TODO: give more meaningful names?!
@@ -118,16 +138,43 @@ def main():
         header = None
         header_fixed_width = None
 
+    if args.class_label is None:
+        class_label_col: int | None = None
+    else:
+        try:
+            class_label_int: int = int(args.class_label)
+            if class_label_int == 0:
+                print(f"Error: --class-label cannot be 0")
+                exit(1)
+            elif abs(class_label_int) > len(rows[0]):
+                print(f"Error: --class-label is out of range")
+                exit(1)
+            elif class_label_int > 0:
+                class_label_col: int | None = class_label_int - 1
+            else:  # class_label_int < 0:
+                class_label_col: int | None = len(rows[0]) + class_label_int
+        except ValueError:  # supplied --class-label is a string:
+            if header is None:
+                print(f"Error: --class-label cannot be a string unless --header is also supplied")
+                exit(1)
+            else:
+                class_label_col: int | None = header.index(args.class_label)
+
     print("")
     print(f"No. of rows: {len(rows)}")
     print(f"No. of columns: {len(rows[0])}")
     print(f"Header?: {args.header}")
+    print(
+        f"Class label column: {class_label_col + 1 if class_label_col is not None else None}" +
+        (f" ({header[class_label_col]})" if header is not None and class_label_col is not None else "")
+    )
     print("")
     print("Duplicate rows:")  # TODO: add limit?!  # TODO: add total count ?!
     rows_by_count: dict = defaultdict(int)
     for row in rows:
         rows_by_count[tuple(row)] += 1
     idx: int = 0
+
     for row, count in sorted(rows_by_count.items(), key=lambda itm: itm[1], reverse=True):
         if count > 1:
             idx += 1
@@ -168,7 +215,9 @@ def main():
                 float_values = None
                 col_type = "STR  "
         print(
-            f"\t({col_idx + 1:03}) {col_type} " +
+            f"\t({col_idx + 1:03}) " +
+            f"{col_type} " +
+            ("" if class_label_col is None else (" * " if class_label_col == col_idx else "   ")) +
             (f"{header_fixed_width[col_idx]} " if header is not None else "") +
             f"{len(distinct_values):7_} distinct values, {missing_value_count:7_} missing" +  # 7 = for values up to "999_999"
             (f": {', '.join(f'{len([v for v in column if v == val])}x {repr(val)}' for val in distinct_values)}" if len(distinct_values) <= args.limit1 else "") +
@@ -179,6 +228,41 @@ def main():
              if col_type in ["FLOAT", "INT  "] and len(distinct_values) > args.limit1 else "")
         )
     print("")
+
+    if class_label_col is not None:
+        class_labels: list = [row[class_label_col] for row in rows]  # = the column containing the class labels
+        classes: list = sorted(set(class_labels))  # = all distinct classes/class labels
+        print("ZeroR:")
+        mode = statistics.mode(class_labels)
+        mode_freq: int = len([label for label in class_labels if label == mode])
+        print(f"\tPrediction: {mode}")
+        print(f"\tAccuracy: {mode_freq:_} / {len(class_labels):_} = {100*(mode_freq/len(class_labels)):.2f}%")
+        if len(classes) == 2:
+            print(f"\tPrecision: {100*(mode_freq/len(class_labels)):.2f}% or N/A")
+            print(f"\tRecall: 100% or 0%")
+        print("")
+
+        print("Attribute distributions by class:")
+        for col_idx in range(len(rows[0])):
+            if col_idx != class_label_col:
+                print(f"\tColumn {col_idx+1}{f' ({header[col_idx]})' if header else ''}:")
+                for class_ in classes:
+                    attr_values: list = [row[col_idx] for row in rows if row[class_label_col] == class_]  # all attribute values of column `col_idx` for class `class_`
+                    mode: str = statistics.mode(attr_values)
+                    mode_freq: int = len([val for val in attr_values if val == mode])
+                    info_str: str = f"\t\tClass {class_}: mode {repr(mode)} ({100*(mode_freq/len(attr_values)):.2f}%)"
+                    if all(is_float(val) for val in attr_values):
+                        float_attr_values: list = [float(val) for val in attr_values]
+                        info_str += (f", median {statistics.median(float_attr_values):_.3f}, "
+                                     f"avg. {statistics.mean(float_attr_values):_.3f}, "
+                                     f"min. {min(float_attr_values):_.3f}, "
+                                     f"max. {max(float_attr_values):_.3f}")
+                    print(info_str)
+        print("")
+
+        # print("OneR:")  # TODO:
+        # print("")
+
     if args.no_warn_identical_columns and args.no_warn_equivalent_columns and args.no_warn_redundant_columns:
         return
     adjectives: list[str] = list()
